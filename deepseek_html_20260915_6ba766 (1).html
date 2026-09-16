@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Weekly Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 50:'#f0fdf4',100:'#dcfce7',500:'#22c55e',600:'#16a34a',700:'#15803d',900:'#14532d' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .locked .app-content { filter: blur(8px); pointer-events: none; user-select: none; }
+        .passcode-shake { animation: shake 0.4s ease; }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+        .pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #475569; transition: all 0.2s; }
+        .pin-dot.filled { background: #22c55e; border-color: #22c55e; }
+        .modal-card { animation: slideUp 0.25s cubic-bezier(0.16,1,0.3,1); }
+        @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white locked">
+
+    <!-- ===================== PASSCODE GATE ===================== -->
+    <div id="passcodeGate" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/95 backdrop-blur-md px-4">
+        <div class="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl modal-card">
+            <div class="flex flex-col items-center text-center mb-6">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center mb-4 shadow-lg shadow-brand-600/30">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                </div>
+                <h2 class="text-xl font-bold text-white">Weekly Portal</h2>
+                <p class="text-xs text-slate-400 mt-1">Enter your access PIN to continue</p>
+            </div>
+
+            <div class="flex justify-center gap-3 mb-6" id="pinDots">
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+                <div class="pin-dot"></div>
+            </div>
+            <div class="grid grid-cols-3 gap-3" id="keypad">
+                <button data-key="1" class="key-btn py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-brand-600 text-xl font-semibold transition">1</button>
+                <button data-key="2" class="key-btn py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-brand-600 text-xl font-semibold transition">2</button>
+                <button data-key="3" class="key-btn py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-brand-600 text-xl font-semibold transition">3</button>
+                <button data-key="4" class="key-btn py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-brand-600 text-xl font-semibold transition">4</button>
+                <button data-key="5" class="key-btn py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-brand-600 text-xl font-semibold transition">5</button>
+                <button data-key="6" class="key-btn py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-brand-600 text-xl font-semibold transition">6</button>
+                <button data-key="7" class="key-btn py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-brand-600 text-xl font-semibold transition">7</button>
+                <button data-key="8" class="key-btn py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-brand-600 text-xl font-semibold transition">8</button>
+                <button data-key="9" class="key-btn py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-brand-600 text-xl font-semibold transition">9</button>
+                <button data-key="clear" class="py-4 rounded-xl bg-slate-800/50 hover:bg-slate-700 text-sm font-medium text-slate-400 transition">Clear</button>
+                <button data-key="0" class="key-btn py-4 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-brand-600 text-xl font-semibold transition">0</button>
+                <button data-key="back" class="py-4 rounded-xl bg-slate-800/50 hover:bg-slate-700 text-sm font-medium text-slate-400 transition">⌫</button>
+            </div>
+            <p id="passError" class="text-center text-xs text-red-400 mt-4 h-4"></p>
+        </div>
+    </div>
+
+    <!-- ===================== MAIN APP ===================== -->
+    <div class="app-content flex flex-col flex-1">
+        <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center font-bold text-xl shadow-lg shadow-brand-600/30">WP</div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-none">Weekly Portal</h1>
+                        <span class="text-xs text-slate-400">Account Overview</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs text-slate-300">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Secure Session</span>
+                    </div>
+                    <button onclick="signOut()" class="text-xs font-medium px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">Lock</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <!-- STAT CARDS -->
+            <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl relative overflow-hidden group">
+                    <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-brand-500/10 rounded-full blur-2xl group-hover:bg-brand-500/20 transition-all"></div>
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Available Balance</span>
+                        <span class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </span>
+                    </div>
+                    <div class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">$237,800.98</div>
+                    <p class="text-xs text-slate-400 mt-2 flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+                        <span class="text-amber-400">Pending review</span>
+                    </p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Weekly Deposit</span>
+                        <span class="p-2 rounded-lg bg-blue-500/10 text-blue-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </span>
+                    </div>
+                    <div class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">+$500.00</div>
+                    <p class="text-xs text-slate-400 mt-2">Schedule: <span class="text-slate-200 font-medium">Every Friday @ 9:30 AM</span></p>
+                </div>
+                <div class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl relative overflow-hidden">
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Pending</span>
+                        <span class="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </span>
+                    </div>
+                    <div class="text-3xl sm:text-4xl font-extrabold text-amber-400 tracking-tight">$237,800.98</div>
+                    <p class="text-xs text-amber-400/80 mt-2 flex items-center gap-1"><span>1 transaction awaiting review</span></p>
+                </div>
+            </section>
+
+            <!-- TIMER -->
+            <section class="p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 border border-slate-800 shadow-2xl relative overflow-hidden">
+                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                    <div>
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-brand-400 text-xs font-semibold mb-3">
+                            <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+                            Countdown
+                        </div>
+                        <h2 class="text-xl sm:text-2xl font-bold text-white">Weekly Cycle Timer</h2>
+                        <p class="text-slate-400 text-sm mt-1">Time remaining until the next weekly cycle (Friday 9:30 AM).</p>
+                    </div>
+                    <div class="grid grid-cols-4 gap-3 w-full lg:w-auto">
+                        <div class="bg-slate-950/80 border border-slate-800 p-3 sm:p-4 rounded-xl text-center min-w-[70px]">
+                            <span id="timerDays" class="block text-xl sm:text-2xl font-bold text-brand-400">00</span>
+                            <span class="text-[10px] sm:text-xs text-slate-400 uppercase font-medium">Days</span>
+                        </div>
+                        <div class="bg-slate-950/80 border border-slate-800 p-3 sm:p-4 rounded-xl text-center min-w-[70px]">
+                            <span id="timerHours" class="block text-xl sm:text-2xl font-bold text-brand-400">00</span>
+                            <span class="text-[10px] sm:text-xs text-slate-400 uppercase font-medium">Hours</span>
+                        </div>
+                        <div class="bg-slate-950/80 border border-slate-800 p-3 sm:p-4 rounded-xl text-center min-w-[70px]">
+                            <span id="timerMins" class="block text-xl sm:text-2xl font-bold text-brand-400">00</span>
+                            <span class="text-[10px] sm:text-xs text-slate-400 uppercase font-medium">Mins</span>
+                        </div>
+                        <div class="bg-slate-950/80 border border-slate-800 p-3 sm:p-4 rounded-xl text-center min-w-[70px]">
+                            <span id="timerSecs" class="block text-xl sm:text-2xl font-bold text-brand-400">00</span>
+                            <span class="text-[10px] sm:text-xs text-slate-400 uppercase font-medium">Secs</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TRANSACTION HISTORY -->
+            <section class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Transaction History</h2>
+                        <p class="text-xs text-slate-400">Click any row to view details</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="filterTransactions('all')" class="filter-btn text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-600 text-white transition" data-filter="all">All</button>
+                        <button onclick="filterTransactions('pending')" class="filter-btn text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition" data-filter="pending">Pending</button>
+                        <button onclick="filterTransactions('completed')" class="filter-btn text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition" data-filter="completed">Completed</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-slate-400 text-xs uppercase">
+                                <th class="pb-3 font-semibold">Details</th>
+                                <th class="pb-3 font-semibold">Type</th>
+                                <th class="pb-3 font-semibold">Date</th>
+                                <th class="pb-3 font-semibold text-right">Amount</th>
+                                <th class="pb-3 font-semibold text-right">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactionTableBody" class="divide-y divide-slate-800/60"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- CONTACT -->
+            <section class="p-6 sm:p-8 rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
+                <div class="mb-6">
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                        Contact Support
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">Reach our team through the channels below</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <a href="tel:0000000000" class="group p-5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900 transition-all">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                            </span>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Support Line</span>
+                        </div>
+                        <div class="text-lg font-bold text-white">Call Support</div>
+                        <div class="text-xs text-emerald-400 mt-1">Available during business hours</div>
+                    </a>
+                    <a href="#" onclick="return false;" class="group p-5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-green-500/50 hover:bg-slate-900 transition-all">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="w-10 h-10 rounded-lg bg-green-500/10 text-green-400 flex items-center justify-center group-hover:scale-110 transition">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                            </span>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Chat</span>
+                        </div>
+                        <div class="text-lg font-bold text-white">Live Chat</div>
+                        <div class="text-xs text-green-400 mt-1">Typical response within minutes</div>
+                    </a>
+                </div>
+            </section>
+        </main>
+
+        <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-500">
+            Weekly Portal &middot; Secure Access
+        </footer>
+    </div>
+
+    <!-- ===================== TRANSACTION DETAIL MODAL ===================== -->
+    <div id="txnModal" class="fixed inset-0 z-[90] hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4">
+        <div class="w-full max-w-md bg-slate-900 text-slate-100 rounded-2xl shadow-2xl modal-card overflow-hidden border border-slate-800">
+            <!-- Header -->
+            <div class="px-5 py-4 border-b border-slate-800 flex items-center gap-3">
+                <div class="w-8 h-8 bg-brand-600 rounded flex items-center justify-center text-white font-bold text-xs">WP</div>
+                <h3 class="font-bold text-lg text-slate-100">Transaction Detail</h3>
+            </div>
+            <!-- Body -->
+            <div class="p-5 space-y-4 text-sm">
+                <p class="font-semibold text-base text-slate-100">Hello <span id="txnName">Jessie Gonzalez</span>,</p>
+                <p class="text-slate-300 leading-relaxed">A payment of <strong id="txnAmount" class="text-slate-100">$237,800.98</strong> is shown here in a pending state for <span id="txnAccount" class="font-medium text-slate-100">Checking account ending in 8570</span>, with the description "<span id="txnDesc" class="font-medium text-slate-100">Weekly Vault</span>."</p>
+
+                <div class="space-y-1 text-slate-300">
+                    <p><strong>Status:</strong> <span id="txnStatus" class="text-amber-400 font-medium">Pending</span></p>
+                    <p><strong>Deadline:</strong> <span id="txnDeadline" class="text-slate-100 font-medium">Saturday 9:30 AM</span></p>
+                    <p><strong>Reason:</strong> <span id="txnReason" class="text-slate-100 font-medium">Awaiting review</span></p>
+                </div>
+
+                <!-- Progress -->
+                <div class="mt-4">
+                    <div class="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                        <span>Review</span><span>Approval</span><span>Processing</span>
+                    </div>
+                    <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                        <div id="txnProgress" class="h-full bg-brand-500" style="width:66%"></div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-2 border-t border-slate-800 pt-3">
+                    <button onclick="alert('Detailed breakdown coming soon.')" class="flex-1 py-2 text-center text-sm font-semibold text-brand-400 hover:bg-slate-800 transition rounded-lg">View Details</button>
+                    <button onclick="acknowledgeNotice()" class="flex-1 py-2 text-center text-sm font-semibold text-brand-400 hover:bg-slate-800 transition rounded-lg">Acknowledge</button>
+                </div>
+
+                <!-- Info Box -->
+                <div class="bg-slate-950/60 p-3 rounded-lg space-y-2 text-sm border border-slate-800">
+                    <div class="flex justify-between"><span class="text-slate-500">Institution:</span><span class="font-semibold text-slate-200">Weekly Portal</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Account Type:</span><span class="font-semibold text-slate-200">Checking</span></div>
+                </div>
+
+                <!-- Close -->
+                <button onclick="closeTxnModal()" class="block w-full py-3 bg-slate-800 text-white text-center font-bold rounded-lg hover:bg-slate-700 transition">Close</button>
+                <p class="text-[10px] text-center text-slate-500 mt-1">Reference: <span id="txnRef">TXN-8942</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== TOAST ===================== -->
+    <div id="toast" class="fixed bottom-6 right-6 px-4 py-3 rounded-xl bg-slate-800 text-slate-100 border border-slate-700 shadow-2xl transition-all transform translate-y-20 opacity-0 pointer-events-none flex items-center gap-3 z-[110]">
+        <span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span>
+        <span id="toastMessage" class="text-sm font-medium">Notification</span>
+    </div>
+
+    <script>
+        // =====================================================
+        //  ACCESS CONFIG — change these values for your env
+        // =====================================================
+        const ACCESS_PIN = "2009";   // set your own PIN here
+        const USER_NAME  = "Jessie Gonzalez";
+
+        // =====================================================
+        //  TRANSACTION DATA
+        //  Replace this array with data fetched from your backend.
+        // =====================================================
+        const transactions = [
+            {
+                id: "TXN-8942",
+                title: "Weekly Vault",
+                category: "Recurring Transfer",
+                account: "Checking account ending in 8570",
+                description: "Weekly Vault",
+                date: "Next Friday, 9:30 AM",
+                deadline: "Saturday 9:30 AM",
+                reason: "Awaiting review",
+                amount: 237800.98,
+                status: "pending",
+                type: "Deposit"
+            },
+            {
+                id: "TXN-8801",
+                title: "Weekly Deposit",
+                category: "Recurring Transfer",
+                account: "Checking account ending 8570",
+                description: "Weekly payout",
+                date: "Previous Friday, 9:30 AM",
+                deadline: "Completed",
+                reason: "Cleared",
+                amount: 500.00,
+                status: "completed",
+                type: "Deposit"
+            },
+            {
+                id: "TXN-8722",
+                title: "Weekly Allocation",
+                category: "Account Transfer",
+                account: "Checking account ending 8570",
+                description: "Weekly payout",
+                date: "2 weeks ago",
+                deadline: "Completed",
+                reason: "Cleared",
+                amount: 450.00,
+                status: "completed",
+                type: "Deposit"
+            },
+            {
+                id: "TXN-8610",
+                title: "Weekly Deposit",
+                category: "Recurring Transfer",
+                account: "Checking account ending 8570",
+                description: "Weekly payout",
+                date: "3 weeks ago",
+                deadline: "Completed",
+                reason: "Cleared",
+                amount: 500.00,
+                status: "completed",
+                type: "Deposit"
+            }
+        ];
+
+        // =====================================================
+        //  PIN GATE
+        // =====================================================
+        let enteredPin = "";
+
+        function updatePinDots() {
+            document.querySelectorAll('#pinDots .pin-dot').forEach((d, i) => {
+                d.classList.toggle('filled', i < enteredPin.length);
+            });
+        }
+
+        function handleKey(key) {
+            const errEl = document.getElementById('passError');
+            errEl.textContent = "";
+
+            if (key === 'clear') { enteredPin = ""; updatePinDots(); return; }
+            if (key === 'back')  { enteredPin = enteredPin.slice(0, -1); updatePinDots(); return; }
+            if (enteredPin.length >= 4) return;
+
+            enteredPin += key;
+            updatePinDots();
+
+            if (enteredPin.length === 4) {
+                setTimeout(() => {
+                    if (enteredPin === ACCESS_PIN) {
+                        unlockPortal();
+                    } else {
+                        const gate = document.getElementById('passcodeGate').querySelector('.modal-card');
+                        gate.classList.add('passcode-shake');
+                        errEl.textContent = "Incorrect PIN. Please try again.";
+                        setTimeout(() => gate.classList.remove('passcode-shake'), 400);
+                        enteredPin = "";
+                        updatePinDots();
+                    }
+                }, 180);
+            }
+        }
+
+        document.querySelectorAll('#keypad .key-btn, #keypad [data-key]').forEach(btn => {
+            btn.addEventListener('click', () => handleKey(btn.dataset.key));
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (!document.getElementById('passcodeGate').classList.contains('hidden')) {
+                if (/^[0-9]$/.test(e.key)) handleKey(e.key);
+                else if (e.key === 'Backspace') handleKey('back');
+                else if (e.key === 'Escape') handleKey('clear');
+            }
+        });
+
+        function unlockPortal() {
+            document.body.classList.remove('locked');
+            document.getElementById('passcodeGate').classList.add('hidden');
+            showToast("Welcome back");
+        }
+
+        function signOut() {
+            document.body.classList.add('locked');
+            document.getElementById('passcodeGate').classList.remove('hidden');
+            enteredPin = "";
+            updatePinDots();
+        }
+
+        // =====================================================
+        //  COUNTDOWN
+        // =====================================================
+        function getNextFriday930AM() {
+            const now = new Date();
+            const resultDate = new Date(now);
+            const dayOffset = (5 - now.getUTCDay() + 7) % 7;
+            resultDate.setUTCDate(now.getUTCDate() + dayOffset);
+            resultDate.setUTCHours(13, 30, 0, 0);
+            if (resultDate <= now) resultDate.setUTCDate(resultDate.getUTCDate() + 7);
+            return resultDate;
+        }
+
+        function updateCountdown() {
+            const diff = getNextFriday930AM().getTime() - Date.now();
+            const set = (id, v) => document.getElementById(id).innerText = String(v).padStart(2, '0');
+            if (diff <= 0) { set('timerDays',0); set('timerHours',0); set('timerMins',0); set('timerSecs',0); return; }
+            set('timerDays',  Math.floor(diff / 86400000));
+            set('timerHours', Math.floor((diff % 86400000) / 3600000));
+            set('timerMins',  Math.floor((diff % 3600000) / 60000));
+            set('timerSecs',  Math.floor((diff % 60000) / 1000));
+        }
+
+        // =====================================================
+        //  RENDER TRANSACTIONS
+        // =====================================================
+        function renderTransactions(filter = 'all') {
+            const tbody = document.getElementById('transactionTableBody');
+            tbody.innerHTML = '';
+            const list = transactions.filter(t => filter === 'all' || t.status === filter);
+
+            if (!list.length) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500">No records for this filter.</td></tr>`;
+                return;
+            }
+
+            list.forEach(t => {
+                const isPending = t.status === 'pending';
+                const statusBadge = isPending
+                    ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20"><span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>Pending</span>`
+                    : `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Completed</span>`;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/40 transition cursor-pointer";
+                tr.onclick = () => openTxnModal(t);
+                tr.innerHTML = `
+                    <td class="py-4 font-medium text-white">
+                        <div>${t.title}</div>
+                        <div class="text-xs text-slate-400">${t.id} · ${t.account}</div>
+                    </td>
+                    <td class="py-4 text-slate-300">${t.category}</td>
+                    <td class="py-4 text-slate-300">${t.date}</td>
+                    <td class="py-4 font-bold text-right ${isPending ? 'text-amber-400' : 'text-emerald-400'}">+$${t.amount.toFixed(2)}</td>
+                    <td class="py-4 text-right">${statusBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterTransactions(filter) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                const active = btn.dataset.filter === filter;
+                btn.className = active
+                    ? "filter-btn text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand-600 text-white transition"
+                    : "filter-btn text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition";
+            });
+            renderTransactions(filter);
+        }
+
+        // =====================================================
+        //  TRANSACTION DETAIL MODAL
+        // =====================================================
+        function openTxnModal(t) {
+            document.getElementById('txnName').innerText     = USER_NAME;
+            document.getElementById('txnAmount').innerText   = '$' + t.amount.toFixed(2);
+            document.getElementById('txnAccount').innerText  = t.account;
+            document.getElementById('txnDesc').innerText     = t.description;
+            document.getElementById('txnStatus').innerText   = t.status === 'pending' ? 'Pending' : 'Completed';
+            document.getElementById('txnDeadline').innerText = t.deadline;
+            document.getElementById('txnReason').innerText   = t.reason;
+            document.getElementById('txnRef').innerText      = t.id;
+            document.getElementById('txnProgress').style.width = t.status === 'completed' ? '100%' : '66%';
+
+            const modal = document.getElementById('txnModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeTxnModal() {
+            const modal = document.getElementById('txnModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function acknowledgeNotice() {
+            showToast("Acknowledged");
+            closeTxnModal();
+        }
+
+        document.getElementById('txnModal').addEventListener('click', (e) => {
+            if (e.target.id === 'txnModal') closeTxnModal();
+        });
+
+        // =====================================================
+        //  TOAST
+        // =====================================================
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none'), 3000);
+        }
+
+        // =====================================================
+        //  INIT
+        // =====================================================
+        window.addEventListener('DOMContentLoaded', () => {
+            renderTransactions('all');
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+        });
+    </script>
+</body>
+</html>
